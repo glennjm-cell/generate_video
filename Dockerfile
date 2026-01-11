@@ -3,20 +3,27 @@ FROM wlsdml1114/multitalk-base:1.7
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
 
-# 🔴 CRITICAL: Disable RunPod cache export (this fixes the hang)
+# 🔴 HARD STOP RunPod cache/export issues
 ENV RUNPOD_DISABLE_BUILD_CACHE=1
-
-# Core deps
-RUN pip install -U pip \
- && pip install runpod websocket-client "huggingface_hub[hf_transfer]"
+ENV HF_HUB_DISABLE_SYMLINKS_WARNING=1
 
 WORKDIR /app
 
-# Clone ComfyUI
-RUN git clone https://github.com/comfyanonymous/ComfyUI.git /ComfyUI \
- && pip install -r /ComfyUI/requirements.txt
+# ------------------------
+# Python deps
+# ------------------------
+RUN pip install --upgrade pip
+RUN pip install runpod websocket-client "huggingface_hub[hf_transfer]"
 
-# ---- Custom nodes ----
+# ------------------------
+# ComfyUI
+# ------------------------
+RUN git clone https://github.com/comfyanonymous/ComfyUI.git /ComfyUI
+RUN pip install -r /ComfyUI/requirements.txt
+
+# ------------------------
+# Custom Nodes (clone only)
+# ------------------------
 WORKDIR /ComfyUI/custom_nodes
 
 RUN git clone https://github.com/Comfy-Org/ComfyUI-Manager.git
@@ -26,16 +33,25 @@ RUN git clone https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git
 RUN git clone https://github.com/kijai/ComfyUI-WanVideoWrapper.git
 RUN git clone https://github.com/orssorbit/ComfyUI-wanBlockswap.git
 
-# Install requirements ONE BY ONE
+# ------------------------
+# Install node requirements (ONE AT A TIME)
+# ------------------------
 RUN pip install -r /ComfyUI/custom_nodes/ComfyUI-Manager/requirements.txt
 RUN pip install -r /ComfyUI/custom_nodes/ComfyUI-GGUF/requirements.txt
 RUN pip install -r /ComfyUI/custom_nodes/ComfyUI-KJNodes/requirements.txt
 RUN pip install -r /ComfyUI/custom_nodes/ComfyUI-VideoHelperSuite/requirements.txt
 RUN pip install -r /ComfyUI/custom_nodes/ComfyUI-WanVideoWrapper/requirements.txt
 
-# ---- Models ----
-RUN mkdir -p /ComfyUI/models/{diffusion_models,vae,text_encoders,loras,clip_vision}
+# ------------------------
+# Models
+# ------------------------
+RUN mkdir -p /ComfyUI/models/diffusion_models \
+             /ComfyUI/models/vae \
+             /ComfyUI/models/text_encoders \
+             /ComfyUI/models/loras \
+             /ComfyUI/models/clip_vision
 
+# WAN Models
 RUN wget -q https://huggingface.co/Kijai/WanVideo_comfy_fp8_scaled/resolve/main/I2V/Wan2_2-I2V-A14B-HIGH_fp8_e4m3fn_scaled_KJ.safetensors \
  -O /ComfyUI/models/diffusion_models/Wan2_2-I2V-A14B-HIGH_fp8_e4m3fn_scaled_KJ.safetensors
 
@@ -58,11 +74,13 @@ RUN wget -q https://huggingface.co/lightx2v/Wan2.2-Lightning/resolve/main/Wan2.2
 RUN wget -q https://huggingface.co/lightx2v/Wan2.2-Lightning/resolve/main/Wan2.2-I2V-A14B-4steps-lora-rank64-Seko-V1/low_noise_model.safetensors \
  -O /ComfyUI/models/loras/low_noise_model.safetensors
 
-# 🔥 Your Tenexa LoRA
+# 🔥 Tenexa LoRA (correct filename)
 RUN wget -q https://huggingface.co/Gjm1234/tenexa-wan22-lora/resolve/main/wan22-k3nk4llinon3-16epoc-full-high-k3nk.safetensors \
  -O /ComfyUI/models/loras/tenexa-wan22-lora.safetensors
 
-# ---- Serverless files ----
+# ------------------------
+# Serverless files
+# ------------------------
 WORKDIR /app
 COPY . /app
 COPY extra_model_paths.yaml /ComfyUI/extra_model_paths.yaml
