@@ -1,40 +1,38 @@
-# Base image with CUDA + Python
 FROM wlsdml1114/multitalk-base:1.7
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
 
-# Install Python deps
+# Core deps
 RUN pip install -U pip \
  && pip install runpod websocket-client "huggingface_hub[hf_transfer]"
 
-# Use safe working dir
 WORKDIR /app
 
 # Clone ComfyUI
 RUN git clone https://github.com/comfyanonymous/ComfyUI.git /ComfyUI \
  && pip install -r /ComfyUI/requirements.txt
 
-# Custom nodes
-RUN cd /ComfyUI/custom_nodes && \
- git clone https://github.com/Comfy-Org/ComfyUI-Manager.git && \
- git clone https://github.com/city96/ComfyUI-GGUF && \
- git clone https://github.com/kijai/ComfyUI-KJNodes && \
- git clone https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite && \
- git clone https://github.com/kijai/ComfyUI-WanVideoWrapper && \
- git clone https://github.com/orssorbit/ComfyUI-wanBlockswap
+# ---- Custom nodes ----
+WORKDIR /ComfyUI/custom_nodes
 
-RUN pip install \
- /ComfyUI/custom_nodes/ComfyUI-Manager/requirements.txt \
- /ComfyUI/custom_nodes/ComfyUI-GGUF/requirements.txt \
- /ComfyUI/custom_nodes/ComfyUI-KJNodes/requirements.txt \
- /ComfyUI/custom_nodes/ComfyUI-VideoHelperSuite/requirements.txt \
- /ComfyUI/custom_nodes/ComfyUI-WanVideoWrapper/requirements.txt
+RUN git clone https://github.com/Comfy-Org/ComfyUI-Manager.git
+RUN git clone https://github.com/city96/ComfyUI-GGUF.git
+RUN git clone https://github.com/kijai/ComfyUI-KJNodes.git
+RUN git clone https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git
+RUN git clone https://github.com/kijai/ComfyUI-WanVideoWrapper.git
+RUN git clone https://github.com/orssorbit/ComfyUI-wanBlockswap.git
 
-# Model directories
+# ---- Install requirements ONE BY ONE (important) ----
+RUN pip install -r /ComfyUI/custom_nodes/ComfyUI-Manager/requirements.txt
+RUN pip install -r /ComfyUI/custom_nodes/ComfyUI-GGUF/requirements.txt
+RUN pip install -r /ComfyUI/custom_nodes/ComfyUI-KJNodes/requirements.txt
+RUN pip install -r /ComfyUI/custom_nodes/ComfyUI-VideoHelperSuite/requirements.txt
+RUN pip install -r /ComfyUI/custom_nodes/ComfyUI-WanVideoWrapper/requirements.txt
+
+# ---- Models ----
 RUN mkdir -p /ComfyUI/models/{diffusion_models,vae,text_encoders,loras,clip_vision}
 
-# WAN models
 RUN wget -q https://huggingface.co/Kijai/WanVideo_comfy_fp8_scaled/resolve/main/I2V/Wan2_2-I2V-A14B-HIGH_fp8_e4m3fn_scaled_KJ.safetensors \
  -O /ComfyUI/models/diffusion_models/Wan2_2-I2V-A14B-HIGH_fp8_e4m3fn_scaled_KJ.safetensors
 
@@ -57,11 +55,12 @@ RUN wget -q https://huggingface.co/lightx2v/Wan2.2-Lightning/resolve/main/Wan2.2
 RUN wget -q https://huggingface.co/lightx2v/Wan2.2-Lightning/resolve/main/Wan2.2-I2V-A14B-4steps-lora-rank64-Seko-V1/low_noise_model.safetensors \
  -O /ComfyUI/models/loras/low_noise_model.safetensors
 
-# YOUR Tenexa LoRA
+# ---- Your Tenexa LoRA ----
 RUN wget -q https://huggingface.co/Gjm1234/tenexa-wan22-lora/resolve/main/wan22-k3nk4llinon3-16epoc-full-high-k3nk.safetensors \
  -O /ComfyUI/models/loras/tenexa-wan22-lora.safetensors
 
-# Serverless code
+# ---- Serverless files ----
+WORKDIR /app
 COPY . /app
 COPY extra_model_paths.yaml /ComfyUI/extra_model_paths.yaml
 
