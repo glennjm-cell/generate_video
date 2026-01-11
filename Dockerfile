@@ -3,6 +3,9 @@ FROM wlsdml1114/multitalk-base:1.7
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
 
+# 🔴 CRITICAL: Disable RunPod cache export (this fixes the hang)
+ENV RUNPOD_DISABLE_BUILD_CACHE=1
+
 # Core deps
 RUN pip install -U pip \
  && pip install runpod websocket-client "huggingface_hub[hf_transfer]"
@@ -23,7 +26,7 @@ RUN git clone https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git
 RUN git clone https://github.com/kijai/ComfyUI-WanVideoWrapper.git
 RUN git clone https://github.com/orssorbit/ComfyUI-wanBlockswap.git
 
-# ---- Install requirements ONE BY ONE (important) ----
+# Install requirements ONE BY ONE
 RUN pip install -r /ComfyUI/custom_nodes/ComfyUI-Manager/requirements.txt
 RUN pip install -r /ComfyUI/custom_nodes/ComfyUI-GGUF/requirements.txt
 RUN pip install -r /ComfyUI/custom_nodes/ComfyUI-KJNodes/requirements.txt
@@ -55,7 +58,7 @@ RUN wget -q https://huggingface.co/lightx2v/Wan2.2-Lightning/resolve/main/Wan2.2
 RUN wget -q https://huggingface.co/lightx2v/Wan2.2-Lightning/resolve/main/Wan2.2-I2V-A14B-4steps-lora-rank64-Seko-V1/low_noise_model.safetensors \
  -O /ComfyUI/models/loras/low_noise_model.safetensors
 
-# ---- Your Tenexa LoRA ----
+# 🔥 Your Tenexa LoRA
 RUN wget -q https://huggingface.co/Gjm1234/tenexa-wan22-lora/resolve/main/wan22-k3nk4llinon3-16epoc-full-high-k3nk.safetensors \
  -O /ComfyUI/models/loras/tenexa-wan22-lora.safetensors
 
