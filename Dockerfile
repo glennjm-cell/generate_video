@@ -1,21 +1,38 @@
-# Base image with CUDA + Python
 FROM wlsdml1114/multitalk-base:1.7
 
+# -----------------------------
+# Environment
+# -----------------------------
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
 
-# Python deps
-RUN pip install -U pip \
-    && pip install runpod websocket-client "huggingface_hub[hf_transfer]"
+# -----------------------------
+# System dependencies (CRITICAL)
+# -----------------------------
+RUN apt-get update && \
+    apt-get install -y git curl wget && \
+    rm -rf /var/lib/apt/lists/*
 
-# Safe working dir
+# -----------------------------
+# Python dependencies
+# -----------------------------
+RUN pip install -U pip && \
+    pip install runpod websocket-client "huggingface_hub[hf_transfer]"
+
+# -----------------------------
+# Working directory
+# -----------------------------
 WORKDIR /app
 
-# Clone ComfyUI
-RUN git clone https://github.com/comfyanonymous/ComfyUI.git /ComfyUI \
-    && pip install -r /ComfyUI/requirements.txt
+# -----------------------------
+# ComfyUI
+# -----------------------------
+RUN git clone https://github.com/comfyanonymous/ComfyUI.git /ComfyUI && \
+    pip install -r /ComfyUI/requirements.txt
 
-# ---------------- CUSTOM NODES ----------------
+# -----------------------------
+# Custom Nodes
+# -----------------------------
 RUN cd /ComfyUI/custom_nodes && \
     git clone https://github.com/Comfy-Org/ComfyUI-Manager.git && \
     pip install -r /ComfyUI/custom_nodes/ComfyUI-Manager/requirements.txt
@@ -39,33 +56,47 @@ RUN cd /ComfyUI/custom_nodes && \
 RUN cd /ComfyUI/custom_nodes && \
     git clone https://github.com/orssorbit/ComfyUI-wanBlockswap
 
-# ---------------- MODELS ----------------
+# -----------------------------
+# Model folders
+# -----------------------------
 RUN mkdir -p /ComfyUI/models/{diffusion_models,vae,text_encoders,loras,clip_vision}
 
-# WAN MODELS
-RUN wget https://huggingface.co/Kijai/WanVideo_comfy_fp8_scaled/resolve/main/I2V/Wan2_2-I2V-A14B-HIGH_fp8_e4m3fn_scaled_KJ.safetensors \
+# -----------------------------
+# Wan 2.2 Models
+# -----------------------------
+RUN wget -q https://huggingface.co/Kijai/WanVideo_comfy_fp8_scaled/resolve/main/I2V/Wan2_2-I2V-A14B-HIGH_fp8_e4m3fn_scaled_KJ.safetensors \
     -O /ComfyUI/models/diffusion_models/Wan2_2-I2V-A14B-HIGH_fp8_e4m3fn_scaled_KJ.safetensors
 
-RUN wget https://huggingface.co/Kijai/WanVideo_comfy_fp8_scaled/resolve/main/I2V/Wan2_2-I2V-A14B-LOW_fp8_e4m3fn_scaled_KJ.safetensors \
+RUN wget -q https://huggingface.co/Kijai/WanVideo_comfy_fp8_scaled/resolve/main/I2V/Wan2_2-I2V-A14B-LOW_fp8_e4m3fn_scaled_KJ.safetensors \
     -O /ComfyUI/models/diffusion_models/Wan2_2-I2V-A14B-LOW_fp8_e4m3fn_scaled_KJ.safetensors
 
-RUN wget https://huggingface.co/Kijai/WanVideo_comfy/resolve/main/Wan2_1_VAE_bf16.safetensors \
-    -O /ComfyUI/models/vae/Wan2_1_VAE_bf16.safetensors
-
-RUN wget https://huggingface.co/Kijai/WanVideo_comfy/resolve/main/umt5-xxl-enc-bf16.safetensors \
-    -O /ComfyUI/models/text_encoders/umt5-xxl-enc-bf16.safetensors
-
-RUN wget https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/clip_vision/clip_vision_h.safetensors \
-    -O /ComfyUI/models/clip_vision/clip_vision_h.safetensors
-
-# ---------------- TENEXA LORA (FIXED) ----------------
-RUN wget https://huggingface.co/Gjm1234/tenexa-wan22-lora/resolve/main/wan22-k3nk4llinon3-16epoc-full-high-k3nk.safetensors \
+# -----------------------------
+# Tenexa LoRA (YOUR MODEL)
+# -----------------------------
+RUN wget -q https://huggingface.co/Gjm1234/tenexa-wan22-lora/resolve/main/wan22-k3nk4llinon3-16epoc-full-high-k3nk.safetensors \
     -O /ComfyUI/models/loras/tenexa-wan22-lora.safetensors
 
-# ---------------- SERVERLESS FILES ----------------
+# -----------------------------
+# Supporting models
+# -----------------------------
+RUN wget -q https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/clip_vision/clip_vision_h.safetensors \
+    -O /ComfyUI/models/clip_vision/clip_vision_h.safetensors
+
+RUN wget -q https://huggingface.co/Kijai/WanVideo_comfy/resolve/main/umt5-xxl-enc-bf16.safetensors \
+    -O /ComfyUI/models/text_encoders/umt5-xxl-enc-bf16.safetensors
+
+RUN wget -q https://huggingface.co/Kijai/WanVideo_comfy/resolve/main/Wan2_1_VAE_bf16.safetensors \
+    -O /ComfyUI/models/vae/Wan2_1_VAE_bf16.safetensors
+
+# -----------------------------
+# Serverless files
+# -----------------------------
 COPY . /app
 COPY extra_model_paths.yaml /ComfyUI/extra_model_paths.yaml
 
 RUN chmod +x /app/entrypoint.sh
 
+# -----------------------------
+# Start
+# -----------------------------
 CMD ["/app/entrypoint.sh"]
