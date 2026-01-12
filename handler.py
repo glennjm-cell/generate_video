@@ -151,24 +151,28 @@ def handler(job):
     elif "end_image_base64" in job_input:
         end_image_path = process_input(job_input["end_image_base64"], task_id, "end.png", "base64")
 
-    # ---- LOAD WORKFLOW (FIXED) ----
+    # ---- LOAD WORKFLOW ----
     workflow_file = "new_Wan22_flf2v_api.json" if end_image_path else "new_Wan22_api.json"
     prompt = load_workflow(workflow_file)
 
-    # ---- BASIC PARAMS ----
+    # ---- SAFE DEFAULTS (FIX) ----
+    seed = job_input.get("seed", int(time.time()))
+    cfg  = job_input.get("cfg", 2.0)
+
     length = job_input.get("length", 81)
-    steps = job_input.get("steps", 10)
+    steps  = job_input.get("steps", 10)
 
     prompt["244"]["inputs"]["image"] = image_path
     prompt["541"]["inputs"]["num_frames"] = length
-    prompt["135"]["inputs"]["positive_prompt"] = job_input["prompt"]
+    prompt["135"]["inputs"]["positive_prompt"] = job_input.get("prompt", "")
     prompt["135"]["inputs"]["negative_prompt"] = job_input.get("negative_prompt", "")
-    prompt["220"]["inputs"]["seed"] = job_input["seed"]
-    prompt["540"]["inputs"]["seed"] = job_input["seed"]
-    prompt["540"]["inputs"]["cfg"] = job_input["cfg"]
 
-    prompt["235"]["inputs"]["value"] = to_nearest_multiple_of_16(job_input["width"])
-    prompt["236"]["inputs"]["value"] = to_nearest_multiple_of_16(job_input["height"])
+    prompt["220"]["inputs"]["seed"] = seed
+    prompt["540"]["inputs"]["seed"] = seed
+    prompt["540"]["inputs"]["cfg"]  = cfg
+
+    prompt["235"]["inputs"]["value"] = to_nearest_multiple_of_16(job_input.get("width", 512))
+    prompt["236"]["inputs"]["value"] = to_nearest_multiple_of_16(job_input.get("height", 512))
 
     prompt["498"]["inputs"]["context_frames"] = length
     prompt["498"]["inputs"]["context_overlap"] = job_input.get("context_overlap", 48)
