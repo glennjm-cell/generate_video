@@ -24,6 +24,8 @@ logger = logging.getLogger(__name__)
 server_address = os.getenv("SERVER_ADDRESS", "127.0.0.1")
 client_id = str(uuid.uuid4())
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 # -------------------------------------------------
 # Helpers
 # -------------------------------------------------
@@ -43,10 +45,7 @@ def ensure_lora_downloaded(repo_id, filename, target_dir="/ComfyUI/models/loras"
     if not os.path.exists(local_path):
         url = f"https://huggingface.co/{repo_id}/resolve/main/{filename}"
         logger.info(f"⬇️ Downloading LoRA: {url}")
-        subprocess.run(
-            ["wget", "-O", local_path, url],
-            check=True
-        )
+        subprocess.run(["wget", "-O", local_path, url], check=True)
 
     return local_path
 
@@ -118,8 +117,11 @@ def get_videos(ws, prompt):
     return videos
 
 
-def load_workflow(path):
-    with open(path, "r") as f:
+def load_workflow(filename):
+    path = os.path.join(BASE_DIR, filename)
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"Workflow file not found: {path}")
+    with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -149,9 +151,9 @@ def handler(job):
     elif "end_image_base64" in job_input:
         end_image_path = process_input(job_input["end_image_base64"], task_id, "end.png", "base64")
 
-    # ---- LOAD WORKFLOW ----
-    workflow_path = "/new_Wan22_flf2v_api.json" if end_image_path else "/new_Wan22_api.json"
-    prompt = load_workflow(workflow_path)
+    # ---- LOAD WORKFLOW (FIXED) ----
+    workflow_file = "new_Wan22_flf2v_api.json" if end_image_path else "new_Wan22_api.json"
+    prompt = load_workflow(workflow_file)
 
     # ---- BASIC PARAMS ----
     length = job_input.get("length", 81)
@@ -178,7 +180,7 @@ def handler(job):
     if end_image_path:
         prompt["617"]["inputs"]["image"] = end_image_path
 
-    # ---- LORA SUPPORT (HIGH / LOW) ----
+    # ---- LORA SUPPORT ----
     lora_pairs = job_input.get("lora_pairs", [])[:4]
 
     for i, pair in enumerate(lora_pairs):
