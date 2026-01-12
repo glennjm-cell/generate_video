@@ -2,29 +2,31 @@
 FROM wlsdml1114/multitalk-base:1.7
 
 # -----------------------------
-# 🔒 Disable BuildKit cache export (CRITICAL)
+# 🔒 Build safety
 # -----------------------------
-ENV BUILDKIT_INLINE_CACHE=0
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
+ENV BUILDKIT_INLINE_CACHE=0
 
 # -----------------------------
-# System + Python deps
+# Python deps
 # -----------------------------
 RUN pip install -U pip && \
     pip install runpod websocket-client "huggingface_hub[hf_transfer]"
 
-# Safe working dir
+# -----------------------------
+# Working directory
+# -----------------------------
 WORKDIR /app
 
 # -----------------------------
-# Clone ComfyUI
+# Clone ComfyUI (CODE ONLY)
 # -----------------------------
 RUN git clone https://github.com/comfyanonymous/ComfyUI.git /ComfyUI && \
     pip install -r /ComfyUI/requirements.txt
 
 # -----------------------------
-# Custom Nodes (NO combined pip install)
+# Custom Nodes (isolated installs)
 # -----------------------------
 RUN cd /ComfyUI/custom_nodes && \
     git clone https://github.com/Comfy-Org/ComfyUI-Manager.git && \
@@ -50,24 +52,13 @@ RUN cd /ComfyUI/custom_nodes && \
     git clone https://github.com/orssorbit/ComfyUI-wanBlockswap.git
 
 # -----------------------------
-# Models + Tenexa LoRA (SINGLE LAYER)
+# Model directories ONLY
+# (NO safetensors downloads at build time)
 # -----------------------------
-RUN mkdir -p /ComfyUI/models/{diffusion_models,vae,text_encoders,loras,clip_vision} && \
-    wget -q https://huggingface.co/Kijai/WanVideo_comfy_fp8_scaled/resolve/main/I2V/Wan2_2-I2V-A14B-HIGH_fp8_e4m3fn_scaled_KJ.safetensors \
-      -O /ComfyUI/models/diffusion_models/Wan2_2-I2V-A14B-HIGH_fp8_e4m3fn_scaled_KJ.safetensors && \
-    wget -q https://huggingface.co/Kijai/WanVideo_comfy_fp8_scaled/resolve/main/I2V/Wan2_2-I2V-A14B-LOW_fp8_e4m3fn_scaled_KJ.safetensors \
-      -O /ComfyUI/models/diffusion_models/Wan2_2-I2V-A14B-LOW_fp8_e4m3fn_scaled_KJ.safetensors && \
-    wget -q https://huggingface.co/Gjm1234/tenexa-wan22-lora/resolve/main/wan22-k3nk4llinon3-16epoc-full-high-k3nk.safetensors \
-      -O /ComfyUI/models/loras/tenexa-wan22-lora.safetensors && \
-    wget -q https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/clip_vision/clip_vision_h.safetensors \
-      -O /ComfyUI/models/clip_vision/clip_vision_h.safetensors && \
-    wget -q https://huggingface.co/Kijai/WanVideo_comfy/resolve/main/umt5-xxl-enc-bf16.safetensors \
-      -O /ComfyUI/models/text_encoders/umt5-xxl-enc-bf16.safetensors && \
-    wget -q https://huggingface.co/Kijai/WanVideo_comfy/resolve/main/Wan2_1_VAE_bf16.safetensors \
-      -O /ComfyUI/models/vae/Wan2_1_VAE_bf16.safetensors
+RUN mkdir -p /ComfyUI/models/{diffusion_models,vae,text_encoders,loras,clip_vision}
 
 # -----------------------------
-# Copy Serverless Files
+# Copy serverless files
 # -----------------------------
 COPY . /app
 COPY extra_model_paths.yaml /ComfyUI/extra_model_paths.yaml
