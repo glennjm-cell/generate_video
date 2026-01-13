@@ -1,83 +1,79 @@
-# Base image
-FROM wlsdml1114/multitalk-base:1.7
+# syntax=docker/dockerfile:1.4
 
-# ------------------------------------------------
-# Environment (CRITICAL)
-# ------------------------------------------------
+########################################
+# STAGE 1 — BUILD EVERYTHING
+########################################
+FROM wlsdml1114/multitalk-base:1.7 AS builder
+
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
-ENV BUILDKIT_INLINE_CACHE=0
-ENV RUNPOD_DISABLE_BUILD_CACHE=1
 
-# ------------------------------------------------
-# System deps (git REQUIRED)
-# ------------------------------------------------
-RUN apt-get update && apt-get install -y \
-    git \
-    wget \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-# ------------------------------------------------
 # Python deps
-# ------------------------------------------------
-RUN pip install --no-cache-dir -U pip && \
-    pip install --no-cache-dir \
-        runpod \
-        websocket-client \
-        huggingface_hub[hf_transfer]
+RUN pip install -U pip && \
+    pip install runpod websocket-client "huggingface_hub[hf_transfer]"
 
-# ------------------------------------------------
-# Workdir
-# ------------------------------------------------
 WORKDIR /app
 
-# ------------------------------------------------
-# Clone ComfyUI ONLY (NO MODELS)
-# ------------------------------------------------
-RUN git clone --depth=1 https://github.com/comfyanonymous/ComfyUI.git /ComfyUI && \
-    pip install --no-cache-dir -r /ComfyUI/requirements.txt
+# ComfyUI
+RUN git clone https://github.com/comfyanonymous/ComfyUI.git /ComfyUI && \
+    pip install -r /ComfyUI/requirements.txt
 
-# ------------------------------------------------
-# Custom nodes (NO combined installs)
-# ------------------------------------------------
+# Custom nodes (separate installs = stable)
 RUN cd /ComfyUI/custom_nodes && \
-    git clone --depth=1 https://github.com/Comfy-Org/ComfyUI-Manager.git && \
-    pip install --no-cache-dir -r ComfyUI-Manager/requirements.txt
+    git clone https://github.com/Comfy-Org/ComfyUI-Manager.git && \
+    pip install -r ComfyUI-Manager/requirements.txt
 
 RUN cd /ComfyUI/custom_nodes && \
-    git clone --depth=1 https://github.com/city96/ComfyUI-GGUF.git && \
-    pip install --no-cache-dir -r ComfyUI-GGUF/requirements.txt
+    git clone https://github.com/city96/ComfyUI-GGUF.git && \
+    pip install -r ComfyUI-GGUF/requirements.txt
 
 RUN cd /ComfyUI/custom_nodes && \
-    git clone --depth=1 https://github.com/kijai/ComfyUI-KJNodes.git && \
-    pip install --no-cache-dir -r ComfyUI-KJNodes/requirements.txt
+    git clone https://github.com/kijai/ComfyUI-KJNodes.git && \
+    pip install -r ComfyUI-KJNodes/requirements.txt
 
 RUN cd /ComfyUI/custom_nodes && \
-    git clone --depth=1 https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git && \
-    pip install --no-cache-dir -r ComfyUI-VideoHelperSuite/requirements.txt
+    git clone https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git && \
+    pip install -r ComfyUI-VideoHelperSuite/requirements.txt
 
 RUN cd /ComfyUI/custom_nodes && \
-    git clone --depth=1 https://github.com/kijai/ComfyUI-WanVideoWrapper.git && \
-    pip install --no-cache-dir -r ComfyUI-WanVideoWrapper/requirements.txt
+    git clone https://github.com/kijai/ComfyUI-WanVideoWrapper.git && \
+    pip install -r ComfyUI-WanVideoWrapper/requirements.txt
 
 RUN cd /ComfyUI/custom_nodes && \
-    git clone --depth=1 https://github.com/orssorbit/ComfyUI-wanBlockswap.git
+    git clone https://github.com/orssorbit/ComfyUI-wanBlockswap.git
 
-# ------------------------------------------------
-# Create model dirs ONLY (NO downloads)
-# ------------------------------------------------
-RUN mkdir -p /ComfyUI/models/{diffusion_models,vae,text_encoders,loras,clip_vision}
+# Models + Tenexa LoRA
+RUN mkdir -p /ComfyUI/models/{diffusion_models,vae,text_encoders,loras,clip_vision} && \
+    wget -q https://huggingface.co/Kijai/WanVideo_comfy_fp8_scaled/resolve/main/I2V/Wan2_2-I2V-A14B-HIGH_fp8_e4m3fn_scaled_KJ.safetensors \
+      -O /ComfyUI/models/diffusion_models/Wan2_2-I2V-A14B-HIGH_fp8_e4m3fn_scaled_KJ.safetensors && \
+    wget -q https://huggingface.co/Kijai/WanVideo_comfy_fp8_scaled/resolve/main/I2V/Wan2_2-I2V-A14B-LOW_fp8_e4m3fn_scaled_KJ.safetensors \
+      -O /ComfyUI/models/diffusion_models/Wan2_2-I2V-A14B-LOW_fp8_e4m3fn_scaled_KJ.safetensors && \
+    wget -q https://huggingface.co/Gjm1234/tenexa-wan22-lora/resolve/main/wan22-k3nk4llinon3-16epoc-full-high-k3nk.safetensors \
+      -O /ComfyUI/models/loras/tenexa-wan22-lora.safetensors && \
+    wget -q https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/clip_vision/clip_vision_h.safetensors \
+      -O /ComfyUI/models/clip_vision/clip_vision_h.safetensors && \
+    wget -q https://huggingface.co/Kijai/WanVideo_comfy/resolve/main/umt5-xxl-enc-bf16.safetensors \
+      -O /ComfyUI/models/text_encoders/umt5-xxl-enc-bf16.safetensors && \
+    wget -q https://huggingface.co/Kijai/WanVideo_comfy/resolve/main/Wan2_1_VAE_bf16.safetensors \
+      -O /ComfyUI/models/vae/Wan2_1_VAE_bf16.safetensors
 
-# ------------------------------------------------
-# Copy serverless code
-# ------------------------------------------------
+# Serverless code
 COPY . /app
 COPY extra_model_paths.yaml /ComfyUI/extra_model_paths.yaml
-
 RUN chmod +x /app/entrypoint.sh
 
-# ------------------------------------------------
-# Start
-# ------------------------------------------------
+########################################
+# STAGE 2 — CLEAN RUNTIME (NO CACHE EXPORT)
+########################################
+FROM wlsdml1114/multitalk-base:1.7
+
+ENV PYTHONUNBUFFERED=1
+ENV DEBIAN_FRONTEND=noninteractive
+
+WORKDIR /app
+
+# Copy ONLY final artifacts (this kills cache export)
+COPY --from=builder /ComfyUI /ComfyUI
+COPY --from=builder /app /app
+
 CMD ["/app/entrypoint.sh"]
