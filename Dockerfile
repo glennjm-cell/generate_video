@@ -70,6 +70,10 @@ FROM wlsdml1114/multitalk-base:1.7
 ENV PYTHONUNBUFFERED=1
 ENV DEBIAN_FRONTEND=noninteractive
 
+# Install Python dependencies required for serverless
+RUN pip install -U pip && \
+    pip install runpod websocket-client "huggingface_hub[hf_transfer]"
+
 WORKDIR /app
 
 # Copy ONLY final artifacts (this kills cache export)

@@ -140,7 +140,7 @@ def handler(job):
     elif "image_base64" in job_input:
         image_path = process_input(job_input["image_base64"], task_id, "image.png", "base64")
     else:
-        image_path = "/example_image.png"
+        image_path = "/app/example_image.png"
 
     # ---- END IMAGE (optional FLF2V) ----
     end_image_path = None
