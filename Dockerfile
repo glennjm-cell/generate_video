@@ -76,4 +76,14 @@ WORKDIR /app
 COPY --from=builder /ComfyUI /ComfyUI
 COPY --from=builder /app /app
 
+# Install ALL Python dependencies in runtime stage
+RUN pip install -U pip && \
+    pip install runpod websocket-client "huggingface_hub[hf_transfer]" && \
+    pip install -r /ComfyUI/requirements.txt && \
+    pip install -r /ComfyUI/custom_nodes/ComfyUI-Manager/requirements.txt && \
+    pip install -r /ComfyUI/custom_nodes/ComfyUI-GGUF/requirements.txt && \
+    pip install -r /ComfyUI/custom_nodes/ComfyUI-KJNodes/requirements.txt && \
+    pip install -r /ComfyUI/custom_nodes/ComfyUI-VideoHelperSuite/requirements.txt && \
+    pip install -r /ComfyUI/custom_nodes/ComfyUI-WanVideoWrapper/requirements.txt
+
 CMD ["/app/entrypoint.sh"]
